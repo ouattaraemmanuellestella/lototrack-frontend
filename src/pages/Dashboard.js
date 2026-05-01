@@ -102,6 +102,7 @@ function Dashboard() {
           <span style={styles.userName}>👤 {user?.nom}</span>
           <button style={styles.mapBtn} onClick={() => navigate('/map')}>🗺️ Voir la carte</button>
           <button style={styles.mapBtn} onClick={() => navigate('/profile')}>👤 Profil</button>
+          <button style={styles.mapBtn} onClick={() => navigate('/livemap')}>📡 Live</button>
           <button style={styles.logoutBtn} onClick={handleLogout}>Déconnexion</button>
         </div>
       </div>

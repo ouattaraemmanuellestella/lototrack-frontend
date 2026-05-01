@@ -5,6 +5,7 @@ import Register from './pages/register';
 import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import Profile from './pages/Profil';
+import LiveMap from './pages/LiveMap';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -21,6 +22,7 @@ function App() {
         <Route path="/map" element={<PrivateRoute><Map /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="/livemap" element={<PrivateRoute><LiveMap /></PrivateRoute>} />
       </Routes>
     </Router>
   );
