@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 
 const API = 'https://lototrack-backend.onrender.com';
+const socket = io(API);
 
-// Icônes personnalisées
 const carIcon = L.divIcon({ html: '🚗', className: 'emoji-icon', iconSize: [30, 30] });
 const stolenIcon = L.divIcon({ html: '🚨', className: 'emoji-icon', iconSize: [30, 30] });
 const policeIcon = L.divIcon({ html: '🚔', className: 'emoji-icon', iconSize: [30, 30] });
@@ -14,41 +14,56 @@ const ambulanceIcon = L.divIcon({ html: '🚑', className: 'emoji-icon', iconSiz
 
 function LiveMap() {
   const [vehicles, setVehicles] = useState({});
-  const [police, setPolice] = useState([]);
-  const [ambulances, setAmbulances] = useState([]);
-  const [socket, setSocket] = useState(null);
+  const [policeTrail, setPoliceTrail] = useState([]);
+  const [ambulanceTrail, setAmbulanceTrail] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const s = io(API);
-    setSocket(s);
-
-    s.on('connect', () => {
-      console.log('✅ Connecté au serveur temps réel');
-      s.emit('get_positions');
-    });
-
-    s.on('all_positions', (data) => setVehicles(data));
-    s.on('position_updated', (data) => {
+    socket.on('connect', () => socket.emit('get_positions'));
+    socket.on('all_positions', (data) => setVehicles(data));
+    socket.on('position_updated', (data) => {
       setVehicles(prev => ({ ...prev, [data.id]: data }));
     });
-    s.on('police_updated', (data) => {
-      setPolice(prev => [...prev.slice(-10), data]);
+    socket.on('police_updated', (data) => {
+      setPoliceTrail(prev => [...prev.slice(-20), [data.latitude, data.longitude]]);
     });
-    s.on('ambulance_updated', (data) => {
-      setAmbulances(prev => [...prev.slice(-10), data]);
+    socket.on('ambulance_updated', (data) => {
+      setAmbulanceTrail(prev => [...prev.slice(-20), [data.latitude, data.longitude]]);
     });
-
-    return () => s.disconnect();
+    return () => socket.off();
   }, []);
+
+  const simulatePolice = () => {
+    let lat = 5.3599517 + (Math.random() - 0.5) * 0.05;
+    let lng = -4.0082563 + (Math.random() - 0.5) * 0.05;
+    const interval = setInterval(() => {
+      lat += (Math.random() - 0.5) * 0.003;
+      lng += (Math.random() - 0.5) * 0.003;
+      socket.emit('police_position', { latitude: lat, longitude: lng });
+    }, 2000);
+    setTimeout(() => clearInterval(interval), 60000);
+  };
+
+  const simulateAmbulance = () => {
+    let lat = 5.3599517 + (Math.random() - 0.5) * 0.05;
+    let lng = -4.0082563 + (Math.random() - 0.5) * 0.05;
+    const interval = setInterval(() => {
+      lat += (Math.random() - 0.5) * 0.003;
+      lng += (Math.random() - 0.5) * 0.003;
+      socket.emit('ambulance_position', { latitude: lat, longitude: lng });
+    }, 2000);
+    setTimeout(() => clearInterval(interval), 60000);
+  };
 
   const center = [5.3599517, -4.0082563];
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>📡 LotoTrack — Suivi en temps réel</h1>
+        <h1 style={styles.title}>📡 LotoTrack — Live</h1>
         <div style={styles.headerBtns}>
+          <button style={styles.btnPolice} onClick={simulatePolice}>🚔 Simuler Police</button>
+          <button style={styles.btnAmbulance} onClick={simulateAmbulance}>🚑 Simuler Ambulance</button>
           <button style={styles.backBtn} onClick={() => navigate('/dashboard')}>← Dashboard</button>
         </div>
       </div>
@@ -58,8 +73,6 @@ function LiveMap() {
         <span style={styles.legendItem}>🚨 Véhicule volé</span>
         <span style={styles.legendItem}>🚔 Police</span>
         <span style={styles.legendItem}>🚑 Ambulance</span>
-        <span style={styles.legendItem}>— Trajectoire police</span>
-        <span style={styles.legendItem}>— Trajectoire ambulance</span>
       </div>
 
       <MapContainer center={center} zoom={13} style={styles.map}>
@@ -68,7 +81,6 @@ function LiveMap() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* Véhicules */}
         {Object.values(vehicles).map(v => v.latitude && (
           <Marker
             key={v.id}
@@ -83,32 +95,20 @@ function LiveMap() {
           </Marker>
         ))}
 
-        {/* Trajectoire police */}
-        {police.length > 1 && (
-          <Polyline
-            positions={police.map(p => [p.latitude, p.longitude])}
-            color="blue"
-            weight={3}
-            dashArray="10,5"
-          />
+        {policeTrail.length > 1 && (
+          <Polyline positions={policeTrail} color="blue" weight={3} dashArray="10,5" />
         )}
-        {police.length > 0 && (
-          <Marker position={[police[police.length-1].latitude, police[police.length-1].longitude]} icon={policeIcon}>
+        {policeTrail.length > 0 && (
+          <Marker position={policeTrail[policeTrail.length - 1]} icon={policeIcon}>
             <Popup>🚔 Police en intervention</Popup>
           </Marker>
         )}
 
-        {/* Trajectoire ambulance */}
-        {ambulances.length > 1 && (
-          <Polyline
-            positions={ambulances.map(a => [a.latitude, a.longitude])}
-            color="red"
-            weight={3}
-            dashArray="10,5"
-          />
+        {ambulanceTrail.length > 1 && (
+          <Polyline positions={ambulanceTrail} color="red" weight={3} dashArray="10,5" />
         )}
-        {ambulances.length > 0 && (
-          <Marker position={[ambulances[ambulances.length-1].latitude, ambulances[ambulances.length-1].longitude]} icon={ambulanceIcon}>
+        {ambulanceTrail.length > 0 && (
+          <Marker position={ambulanceTrail[ambulanceTrail.length - 1]} icon={ambulanceIcon}>
             <Popup>🚑 Ambulance en route</Popup>
           </Marker>
         )}
@@ -120,11 +120,11 @@ function LiveMap() {
           <span style={styles.infoLabel}>Véhicules trackés</span>
         </div>
         <div style={styles.infoCard}>
-          <span style={styles.infoNumber}>{police.length > 0 ? 1 : 0}</span>
+          <span style={styles.infoNumber}>{policeTrail.length > 0 ? 1 : 0}</span>
           <span style={styles.infoLabel}>Policiers actifs</span>
         </div>
         <div style={styles.infoCard}>
-          <span style={styles.infoNumber}>{ambulances.length > 0 ? 1 : 0}</span>
+          <span style={styles.infoNumber}>{ambulanceTrail.length > 0 ? 1 : 0}</span>
           <span style={styles.infoLabel}>Ambulances actives</span>
         </div>
       </div>
@@ -138,6 +138,8 @@ const styles = {
   title: { color: '#e94560', margin: 0, fontSize: '20px' },
   headerBtns: { display: 'flex', gap: '12px' },
   backBtn: { padding: '8px 16px', backgroundColor: '#0f3460', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+  btnPolice: { padding: '8px 16px', backgroundColor: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+  btnAmbulance: { padding: '8px 16px', backgroundColor: '#c62828', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
   legend: { display: 'flex', gap: '16px', padding: '8px 32px', backgroundColor: '#16213e', borderTop: '1px solid #0f3460', flexWrap: 'wrap' },
   legendItem: { color: '#aaa', fontSize: '13px' },
   map: { flex: 1 },
