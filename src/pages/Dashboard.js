@@ -58,16 +58,46 @@ function Dashboard() {
   }
   };
 
-  const [tracking, setTracking] = useState(null);
+  const [trackingMap, setTrackingMap] = useState({});
 
 const handlePosition = (id, immatriculation, statut) => {
-  if (tracking) {
-    // Arrêter le tracking
-    clearInterval(tracking);
-    setTracking(null);
-    alert('Tracking arrêté ⏹️');
+  if (trackingMap[id]) {
+    // Arrêter le tracking de ce véhicule
+    clearInterval(trackingMap[id]);
+    setTrackingMap(prev => {
+      const updated = {...prev};
+      delete updated[id];
+      return updated;
+    });
+    alert(`⏹️ Tracking arrêté pour ${immatriculation}`);
     return;
   }
+
+  // Position de départ aléatoire autour d'Abidjan
+  let lat = 5.3599517 + (Math.random() - 0.5) * 0.05;
+  let lng = -4.0082563 + (Math.random() - 0.5) * 0.05;
+
+  const interval = setInterval(async () => {
+    // Simuler un déplacement réaliste
+    lat += (Math.random() - 0.5) * 0.002;
+    lng += (Math.random() - 0.5) * 0.002;
+
+    try {
+      await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/position`, {
+        latitude: lat, longitude: lng
+      }, { headers });
+
+      socket.emit('update_position', {
+        id, immatriculation, statut, latitude: lat, longitude: lng
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }, 3000);
+
+  setTrackingMap(prev => ({...prev, [id]: interval}));
+  alert(`📍 Tracking démarré pour ${immatriculation} !`);
+};
 
   // Démarrer le tracking
   const interval = setInterval(() => {
@@ -161,9 +191,12 @@ const handlePosition = (id, immatriculation, statut) => {
                   <button style={styles.btnVole} onClick={() => handleStatut(v._id, 'vole')}>🚨 Volé</button>
                   <button style={styles.btnAccident} onClick={() => handleStatut(v._id, 'accident')}>⚠️ Accident</button>
                   <button style={styles.btnActif} onClick={() => handleStatut(v._id, 'actif')}>✅ Actif</button>
-                  <button style={{...styles.btnPosition, backgroundColor: tracking ? '#4caf50' : '#2196f3'}} onClick={() => handlePosition(v._id, v.immatriculation, v.statut)}>
-  {tracking ? '⏹️ Stop' : '📍 Track'}
+                  <button 
+  style={{...styles.btnPosition, backgroundColor: trackingMap[v._id] ? '#4caf50' : '#2196f3'}} 
+  onClick={() => handlePosition(v._id, v.immatriculation, v.statut)}>
+  {trackingMap[v._id] ? '⏹️ Stop' : '📍 Track'}
 </button>
+
                 </div>
               </div>
             ))
