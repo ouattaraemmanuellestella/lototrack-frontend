@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Map from './pages/Map';
 import Profile from './pages/Profil';
 import LiveMap from './pages/LiveMap';
+import Police from './pages/Police';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -23,6 +24,7 @@ function App() {
         <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/login" />} />
         <Route path="/livemap" element={<PrivateRoute><LiveMap /></PrivateRoute>} />
+        <Route path="/police" element={<PrivateRoute><Police /></PrivateRoute>} />
       </Routes>
     </Router>
   );

@@ -103,6 +103,7 @@ function Dashboard() {
           <button style={styles.mapBtn} onClick={() => navigate('/livemap')}>📡 Live</button>
           <button style={styles.mapBtn} onClick={() => navigate('/profile')}>👤 Profil</button>
           <button style={styles.logoutBtn} onClick={handleLogout}>Déconnexion</button>
+          <button style={styles.mapBtn} onClick={() => navigate('/police')}>🚔 Police</button>
         </div>
       </div>
 
