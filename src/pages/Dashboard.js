@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
+
+const socket = io('https://lototrack-backend.onrender.com');
 
 function Dashboard() {
   const [vehicles, setVehicles] = useState([]);
@@ -55,13 +58,25 @@ function Dashboard() {
   }
   };
 
-  const handlePosition = async (id) => {
+  const handlePosition = async (id, immatriculation, statut) => {
   navigator.geolocation.getCurrentPosition(async (pos) => {
     try {
-      await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/position`, {
-        latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude
+      const { latitude, longitude } = pos.coords;
+      
+      // Envoyer via API REST
+      await axios.put(`http://localhost:5000/api/vehicles/${id}/position`, {
+        latitude, longitude
       }, { headers });
+
+      // Envoyer via Socket.io pour le live
+      socket.emit('update_position', {
+        id,
+        immatriculation,
+        statut,
+        latitude,
+        longitude
+      });
+
       fetchVehicles();
       alert('Position mise à jour ! 📍');
     } catch (err) {
@@ -140,7 +155,7 @@ function Dashboard() {
                   <button style={styles.btnVole} onClick={() => handleStatut(v._id, 'vole')}>🚨 Volé</button>
                   <button style={styles.btnAccident} onClick={() => handleStatut(v._id, 'accident')}>⚠️ Accident</button>
                   <button style={styles.btnActif} onClick={() => handleStatut(v._id, 'actif')}>✅ Actif</button>
-                  <button style={styles.btnPosition} onClick={() => handlePosition(v._id)}>📍 Position</button>
+                  <button style={styles.btnPosition} onClick={() => handlePosition(v._id, v.immatriculation, v.statut)}>📍 Position</button>
                 </div>
               </div>
             ))
