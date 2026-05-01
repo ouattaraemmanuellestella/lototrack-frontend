@@ -9,12 +9,12 @@ function Dashboard() {
   const [vehicles, setVehicles] = useState([]);
   const [form, setForm] = useState({ immatriculation: '', marque: '', modele: '', couleur: '' });
   const [error, setError] = useState('');
+  const [alerte, setAlerte] = useState(null);
+  const [trackingMap, setTrackingMap] = useState({});
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
   const token = localStorage.getItem('token');
-
   const headers = { Authorization: `Bearer ${token}` };
-  <button style={styles.mapBtn} onClick={() => navigate('/profile')}>👤 Profil</button>
 
   useEffect(() => {
     fetchVehicles();
@@ -40,86 +40,53 @@ function Dashboard() {
     }
   };
 
-  const [alerte, setAlerte] = useState(null);
-
   const handleStatut = async (id, statut) => {
-  try {
-    await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/statut`, { statut }, { headers });
-    fetchVehicles();
-    if (statut === 'vole') {
-      setAlerte({ type: 'vole', vehicleId: id });
-    } else if (statut === 'accident') {
-      setAlerte({ type: 'accident', vehicleId: id });
-    } else {
-      setAlerte(null);
+    try {
+      await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/statut`, { statut }, { headers });
+      fetchVehicles();
+      if (statut === 'vole') {
+        setAlerte({ type: 'vole', vehicleId: id });
+      } else if (statut === 'accident') {
+        setAlerte({ type: 'accident', vehicleId: id });
+      } else {
+        setAlerte(null);
+      }
+    } catch (err) {
+      setError('Erreur mise à jour statut');
     }
-  } catch (err) {
-    setError('Erreur mise à jour statut');
-  }
   };
 
-  const [trackingMap, setTrackingMap] = useState({});
-
-const handlePosition = (id, immatriculation, statut) => {
-  if (trackingMap[id]) {
-    // Arrêter le tracking de ce véhicule
-    clearInterval(trackingMap[id]);
-    setTrackingMap(prev => {
-      const updated = {...prev};
-      delete updated[id];
-      return updated;
-    });
-    alert(`⏹️ Tracking arrêté pour ${immatriculation}`);
-    return;
-  }
-
-  // Position de départ aléatoire autour d'Abidjan
-  let lat = 5.3599517 + (Math.random() - 0.5) * 0.05;
-  let lng = -4.0082563 + (Math.random() - 0.5) * 0.05;
-
-  const interval = setInterval(async () => {
-    // Simuler un déplacement réaliste
-    lat += (Math.random() - 0.5) * 0.002;
-    lng += (Math.random() - 0.5) * 0.002;
-
-    try {
-      await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/position`, {
-        latitude: lat, longitude: lng
-      }, { headers });
-
-      socket.emit('update_position', {
-        id, immatriculation, statut, latitude: lat, longitude: lng
+  const handlePosition = (id, immatriculation, statut) => {
+    if (trackingMap[id]) {
+      clearInterval(trackingMap[id]);
+      setTrackingMap(prev => {
+        const updated = { ...prev };
+        delete updated[id];
+        return updated;
       });
-    } catch (err) {
-      console.error(err);
+      return;
     }
-  }, 3000);
 
-  setTrackingMap(prev => ({...prev, [id]: interval}));
-  alert(`📍 Tracking démarré pour ${immatriculation} !`);
-};
+    let lat = 5.3599517 + (Math.random() - 0.5) * 0.05;
+    let lng = -4.0082563 + (Math.random() - 0.5) * 0.05;
 
-  // Démarrer le tracking
-  const interval = setInterval(() => {
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
+    const interval = setInterval(async () => {
+      lat += (Math.random() - 0.5) * 0.002;
+      lng += (Math.random() - 0.5) * 0.002;
       try {
         await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/position`, {
-          latitude, longitude
+          latitude: lat, longitude: lng
         }, { headers });
-
         socket.emit('update_position', {
-          id, immatriculation, statut, latitude, longitude
+          id, immatriculation, statut, latitude: lat, longitude: lng
         });
       } catch (err) {
         console.error(err);
       }
-    });
-  }, 5000);
+    }, 3000);
 
-  setTracking(interval);
-  alert('Tracking démarré ! 📍 Clique à nouveau pour arrêter.');
-};
+    setTrackingMap(prev => ({ ...prev, [id]: interval }));
+  };
 
   const handleLogout = () => {
     localStorage.clear();
@@ -129,37 +96,37 @@ const handlePosition = (id, immatriculation, statut) => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        {alerte && (
-  <div style={styles.alerteBanner}>
-    <div style={styles.alerteContent}>
-      <h2 style={styles.alerteTitle}>
-        {alerte.type === 'vole' ? '🚨 VÉHICULE VOLÉ !' : '⚠️ ACCIDENT SIGNALÉ !'}
-      </h2>
-      <p style={styles.alerteText}>Contactez immédiatement les secours :</p>
-      <div style={styles.urgenceButtons}>
-        <a href="tel:110" style={styles.btnPolice}>🚔 Police — 110</a>
-        <a href="tel:185" style={styles.btnSamu}>🚑 SAMU — 185</a>
-        <a href="tel:180" style={styles.btnPompiers}>🚒 Pompiers — 180</a>
-        {alerte.type === 'vole' && (
-          <a href="tel:111" style={styles.btnGendarmerie}>👮 Gendarmerie — 111</a>
-        )}
-      </div>
-      <button style={styles.alerteClose} onClick={() => setAlerte(null)}>✕ Fermer</button>
-    </div>
-  </div>
-)}
         <h1 style={styles.title}>🚗 LotoTrack</h1>
         <div style={styles.userInfo}>
           <span style={styles.userName}>👤 {user?.nom}</span>
-          <button style={styles.mapBtn} onClick={() => navigate('/map')}>🗺️ Voir la carte</button>
-          <button style={styles.mapBtn} onClick={() => navigate('/profile')}>👤 Profil</button>
+          <button style={styles.mapBtn} onClick={() => navigate('/map')}>🗺️ Carte</button>
           <button style={styles.mapBtn} onClick={() => navigate('/livemap')}>📡 Live</button>
+          <button style={styles.mapBtn} onClick={() => navigate('/profile')}>👤 Profil</button>
           <button style={styles.logoutBtn} onClick={handleLogout}>Déconnexion</button>
         </div>
       </div>
 
+      {alerte && (
+        <div style={styles.alerteBanner}>
+          <div style={styles.alerteContent}>
+            <h2 style={styles.alerteTitle}>
+              {alerte.type === 'vole' ? '🚨 VÉHICULE VOLÉ !' : '⚠️ ACCIDENT SIGNALÉ !'}
+            </h2>
+            <p style={styles.alerteText}>Contactez immédiatement les secours :</p>
+            <div style={styles.urgenceButtons}>
+              <a href="tel:110" style={styles.btnPolice}>🚔 Police — 110</a>
+              <a href="tel:185" style={styles.btnSamu}>🚑 SAMU — 185</a>
+              <a href="tel:180" style={styles.btnPompiers}>🚒 Pompiers — 180</a>
+              {alerte.type === 'vole' && (
+                <a href="tel:111" style={styles.btnGendarmerie}>👮 Gendarmerie — 111</a>
+              )}
+            </div>
+            <button style={styles.alerteClose} onClick={() => setAlerte(null)}>✕ Fermer</button>
+          </div>
+        </div>
+      )}
+
       <div style={styles.content}>
-        {/* Formulaire ajout véhicule */}
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>➕ Ajouter un véhicule</h2>
           {error && <p style={styles.error}>{error}</p>}
@@ -172,7 +139,6 @@ const handlePosition = (id, immatriculation, statut) => {
           </form>
         </div>
 
-        {/* Liste véhicules */}
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>🚘 Mes véhicules ({vehicles.length})</h2>
           {vehicles.length === 0 ? (
@@ -191,12 +157,11 @@ const handlePosition = (id, immatriculation, statut) => {
                   <button style={styles.btnVole} onClick={() => handleStatut(v._id, 'vole')}>🚨 Volé</button>
                   <button style={styles.btnAccident} onClick={() => handleStatut(v._id, 'accident')}>⚠️ Accident</button>
                   <button style={styles.btnActif} onClick={() => handleStatut(v._id, 'actif')}>✅ Actif</button>
-                  <button 
-  style={{...styles.btnPosition, backgroundColor: trackingMap[v._id] ? '#4caf50' : '#2196f3'}} 
-  onClick={() => handlePosition(v._id, v.immatriculation, v.statut)}>
-  {trackingMap[v._id] ? '⏹️ Stop' : '📍 Track'}
-</button>
-
+                  <button
+                    style={{...styles.btnPosition, backgroundColor: trackingMap[v._id] ? '#4caf50' : '#2196f3'}}
+                    onClick={() => handlePosition(v._id, v.immatriculation, v.statut)}>
+                    {trackingMap[v._id] ? '⏹️ Stop' : '📍 Track'}
+                  </button>
                 </div>
               </div>
             ))
@@ -214,6 +179,7 @@ const styles = {
   userInfo: { display: 'flex', alignItems: 'center', gap: '16px' },
   userName: { color: '#aaa' },
   logoutBtn: { padding: '8px 16px', backgroundColor: '#e94560', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+  mapBtn: { padding: '8px 16px', backgroundColor: '#0f3460', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
   content: { display: 'flex', gap: '24px', padding: '32px', flexWrap: 'wrap' },
   card: { backgroundColor: '#16213e', borderRadius: '12px', padding: '24px', flex: '1', minWidth: '300px' },
   cardTitle: { color: '#e94560', marginBottom: '20px' },
@@ -224,24 +190,23 @@ const styles = {
   immat: { color: '#e94560', fontWeight: 'bold', fontSize: '18px' },
   vehicleName: { color: '#fff' },
   statut: { display: 'inline-block', padding: '2px 10px', borderRadius: '12px', fontSize: '12px', color: '#fff', width: 'fit-content' },
-  actions: { display: 'flex', gap: '8px' },
+  actions: { display: 'flex', gap: '8px', flexWrap: 'wrap' },
   btnVole: { padding: '6px 12px', backgroundColor: '#e94560', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
   btnAccident: { padding: '6px 12px', backgroundColor: '#ff9800', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
   btnActif: { padding: '6px 12px', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
+  btnPosition: { padding: '6px 12px', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
   error: { color: '#e94560', marginBottom: '12px' },
   empty: { color: '#aaa', textAlign: 'center' },
-  mapBtn: { padding: '8px 16px', backgroundColor: '#0f3460', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
-  btnPosition: { padding: '6px 12px', backgroundColor: '#2196f3', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' },
   alerteBanner: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' },
-alerteContent: { backgroundColor: '#16213e', borderRadius: '16px', padding: '40px', textAlign: 'center', maxWidth: '500px', border: '2px solid #e94560' },
-alerteTitle: { color: '#e94560', fontSize: '28px', marginBottom: '16px' },
-alerteText: { color: '#fff', marginBottom: '24px' },
-urgenceButtons: { display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginBottom: '24px' },
-btnPolice: { padding: '12px 20px', backgroundColor: '#1565c0', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
-btnSamu: { padding: '12px 20px', backgroundColor: '#c62828', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
-btnPompiers: { padding: '12px 20px', backgroundColor: '#e65100', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
-btnGendarmerie: { padding: '12px 20px', backgroundColor: '#2e7d32', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
-alerteClose: { padding: '10px 24px', backgroundColor: '#333', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+  alerteContent: { backgroundColor: '#16213e', borderRadius: '16px', padding: '40px', textAlign: 'center', maxWidth: '500px', border: '2px solid #e94560' },
+  alerteTitle: { color: '#e94560', fontSize: '28px', marginBottom: '16px' },
+  alerteText: { color: '#fff', marginBottom: '24px' },
+  urgenceButtons: { display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginBottom: '24px' },
+  btnPolice: { padding: '12px 20px', backgroundColor: '#1565c0', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
+  btnSamu: { padding: '12px 20px', backgroundColor: '#c62828', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
+  btnPompiers: { padding: '12px 20px', backgroundColor: '#e65100', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
+  btnGendarmerie: { padding: '12px 20px', backgroundColor: '#2e7d32', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontWeight: 'bold' },
+  alerteClose: { padding: '10px 24px', backgroundColor: '#333', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer' },
 };
 
 export default Dashboard;
