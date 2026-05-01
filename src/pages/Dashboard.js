@@ -19,7 +19,7 @@ function Dashboard() {
 
   const fetchVehicles = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/vehicles', { headers });
+      const res = await axios.get('https://lototrack-backend.onrender.com/api/vehicles', { headers });
       setVehicles(res.data);
     } catch (err) {
       setError('Erreur lors du chargement');
@@ -29,7 +29,7 @@ function Dashboard() {
   const handleAdd = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/vehicles', form, { headers });
+      await axios.post('https://lototrack-backend.onrender.com/api/vehicles', form, { headers });
       setForm({ immatriculation: '', marque: '', modele: '', couleur: '' });
       fetchVehicles();
     } catch (err) {
@@ -41,7 +41,7 @@ function Dashboard() {
 
   const handleStatut = async (id, statut) => {
   try {
-    await axios.put(`http://localhost:5000/api/vehicles/${id}/statut`, { statut }, { headers });
+    await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/statut`, { statut }, { headers });
     fetchVehicles();
     if (statut === 'vole') {
       setAlerte({ type: 'vole', vehicleId: id });
@@ -58,7 +58,7 @@ function Dashboard() {
   const handlePosition = async (id) => {
   navigator.geolocation.getCurrentPosition(async (pos) => {
     try {
-      await axios.put(`http://localhost:5000/api/vehicles/${id}/position`, {
+      await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/position`, {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude
       }, { headers });
