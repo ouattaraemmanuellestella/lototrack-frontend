@@ -58,31 +58,37 @@ function Dashboard() {
   }
   };
 
-  const handlePosition = async (id, immatriculation, statut) => {
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    try {
+  const [tracking, setTracking] = useState(null);
+
+const handlePosition = (id, immatriculation, statut) => {
+  if (tracking) {
+    // Arrêter le tracking
+    clearInterval(tracking);
+    setTracking(null);
+    alert('Tracking arrêté ⏹️');
+    return;
+  }
+
+  // Démarrer le tracking
+  const interval = setInterval(() => {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
-      
-      // Envoyer via API REST
-      await axios.put(`http://localhost:5000/api/vehicles/${id}/position`, {
-        latitude, longitude
-      }, { headers });
+      try {
+        await axios.put(`https://lototrack-backend.onrender.com/api/vehicles/${id}/position`, {
+          latitude, longitude
+        }, { headers });
 
-      // Envoyer via Socket.io pour le live
-      socket.emit('update_position', {
-        id,
-        immatriculation,
-        statut,
-        latitude,
-        longitude
-      });
+        socket.emit('update_position', {
+          id, immatriculation, statut, latitude, longitude
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    });
+  }, 5000);
 
-      fetchVehicles();
-      alert('Position mise à jour ! 📍');
-    } catch (err) {
-      setError('Erreur mise à jour position');
-    }
-  });
+  setTracking(interval);
+  alert('Tracking démarré ! 📍 Clique à nouveau pour arrêter.');
 };
 
   const handleLogout = () => {
@@ -155,7 +161,9 @@ function Dashboard() {
                   <button style={styles.btnVole} onClick={() => handleStatut(v._id, 'vole')}>🚨 Volé</button>
                   <button style={styles.btnAccident} onClick={() => handleStatut(v._id, 'accident')}>⚠️ Accident</button>
                   <button style={styles.btnActif} onClick={() => handleStatut(v._id, 'actif')}>✅ Actif</button>
-                  <button style={styles.btnPosition} onClick={() => handlePosition(v._id, v.immatriculation, v.statut)}>📍 Position</button>
+                  <button style={{...styles.btnPosition, backgroundColor: tracking ? '#4caf50' : '#2196f3'}} onClick={() => handlePosition(v._id, v.immatriculation, v.statut)}>
+  {tracking ? '⏹️ Stop' : '📍 Track'}
+</button>
                 </div>
               </div>
             ))
